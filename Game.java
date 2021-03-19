@@ -1,4 +1,3 @@
-import java.util.Date;
 import java.util.ArrayList;
 
 /**
@@ -21,6 +20,7 @@ import java.util.ArrayList;
 public class Game {
     private Parser parser;
     private Room currentRoom;
+    int playerHealth = 20;
     private ArrayList<Item> inventory;
     private ArrayList<Room> roomHistory;
 
@@ -43,7 +43,7 @@ public class Game {
 
         // create the rooms
         outside = new Room("outside the main entrance of the university");
-        theater = new Room("in a lecture theater");
+        theater = new Room("in a lecture theater", -20);
         pub = new Room("in the campus pub");
         lab = new Room("in a computing lab");
         office = new Room("in the computing admin office");
@@ -59,10 +59,18 @@ public class Game {
         kitchen = new Room("in the kitchem");
         diningRoom = new Room("in the dining room");
 
+        // Add items to rooms
         outside.addItem(new Item("water gun", 15));
         outside.addItem(new Item("hose", 540));
+        pub.addItem(new Item("key", 10, "in a lecture theater"));
         theater.addItem(new Item("dress", 60));
         dungeon.addItem(new Item("chains", 200));
+
+        // Add npc's to rooms
+        outside.setNPC(new NPC("Where's the bathroom?... Nevermind, too late."));
+
+        // Lock any rooms that need a key
+        theater.isLocked = true;
 
         // initialise room exits
         outside.setExit("east", theater);
@@ -137,6 +145,8 @@ public class Game {
         System.out.println("Welcome to the World of Zuul!");
         System.out.println("World of Zuul is a new, incredibly boring adventure game.");
         System.out.println("Type '" + CommandWord.HELP + "' if you need help.");
+        System.out
+                .println("You are starting with 20 health points(hp). Certain rooms will heal/damage you, be careful!");
         System.out.println();
         System.out.println(currentRoom.getLongDescription());
     }
@@ -178,6 +188,12 @@ public class Game {
         case BACK:
             goBack();
             break;
+        case TAKE:
+            takeItem();
+            break;
+        case TALK:
+            talk();
+            break;
         }
         return wantToQuit;
     }
@@ -191,6 +207,7 @@ public class Game {
     private void printHelp() {
         System.out.println("You are lost. You are alone. You wander");
         System.out.println("around at the university.");
+        System.out.println("You currently have " + playerHealth + "hp points left.");
         System.out.println();
         System.out.println("Your command words are:");
         parser.showCommands();
@@ -215,9 +232,44 @@ public class Game {
         if (nextRoom == null) {
             System.out.println("There is no door!");
         } else {
-            roomHistory.add(new Room(currentRoom));
-            currentRoom = nextRoom;
-            System.out.println(currentRoom.getLongDescription());
+            if (!nextRoom.isLocked) {
+                roomHistory.add(new Room(currentRoom));
+                currentRoom = nextRoom;
+                System.out.println(currentRoom.getLongDescription());
+                playerHealth += currentRoom.healthModifier;
+
+                if (currentRoom.healthModifier > 0) {
+                    System.out.println("You have gained " + currentRoom.healthModifier + "hp by coming here");
+                } else if (currentRoom.healthModifier < 0) {
+                    System.out.println("You tripped and lost " + Math.abs(currentRoom.healthModifier)
+                            + "hp entering this room. The damage to your pride is irreparable.");
+                }
+
+                System.out.println("You have " + playerHealth + "hp points left.");
+                checkDeath();
+            } else {
+                String lockValue = nextRoom.getShortDescription();
+                for (Item item : inventory) {
+                    if (item.key.equals(lockValue)) {
+                        roomHistory.add(new Room(currentRoom));
+                        currentRoom = nextRoom;
+                        System.out.println(currentRoom.getLongDescription());
+                        playerHealth += currentRoom.healthModifier;
+
+                        if (currentRoom.healthModifier > 0) {
+                            System.out.println("You have gained " + currentRoom.healthModifier + "hp by coming here");
+                        } else if (currentRoom.healthModifier < 0) {
+                            System.out.println("You tripped and lost " + currentRoom.healthModifier
+                                    + "hp entering this room. The damage to your pride is irreparable.");
+                        }
+
+                        System.out.println("You have " + playerHealth + "hp points left.");
+                        checkDeath();
+                        return;
+                    }
+                }
+                System.out.println("Oi! Why iz dis door locked?!");
+            }
         }
     }
 
@@ -247,8 +299,56 @@ public class Game {
      * Returns you to the previous room
      */
     private void goBack() {
-        currentRoom = new Room(roomHistory.get(roomHistory.size() - 1));
-        roomHistory.remove(roomHistory.size() - 1);
+        if (roomHistory.size() <= 1) {
+            System.out.println("You cannot go back, this is where you started.");
+        } else {
+            currentRoom = new Room(roomHistory.get(roomHistory.size() - 1));
+            roomHistory.remove(roomHistory.size() - 1);
 
+            System.out.println(currentRoom.getLongDescription());
+            playerHealth += currentRoom.healthModifier;
+
+            if (currentRoom.healthModifier > 0) {
+                System.out.println("You have gained " + currentRoom.healthModifier + "hp by coming here");
+            } else if (currentRoom.healthModifier < 0) {
+                System.out.println("You tripped and lost " + currentRoom.healthModifier
+                        + "hp entering this room. The damage to your pride is irreparable.");
+            }
+
+            System.out.println("You have " + playerHealth + "hp points left.");
+            checkDeath();
+        }
+
+    }
+
+    /**
+     * Take the first item in the room and place in player's inventory
+     */
+    private void takeItem() {
+        Item item = currentRoom.takeItem();
+        if (item != null) {
+            inventory.add(item);
+            System.out.println("You picked up " + item.itemName);
+        } else {
+            System.out.println("There was no item to pick up.");
+        }
+    }
+
+    /**
+     * Talk to npc, where npc says words.
+     */
+    private void talk() {
+        NPC npc = currentRoom.getNPC();
+        if (npc != null) {
+            npc.speak();
+        } else {
+            System.out.println("There's no one in here... Why are you talking to yourself?");
+        }
+    }
+
+    private void checkDeath() {
+        if (playerHealth <= 0) {
+            quit(new Command(CommandWord.QUIT, null));
+        }
     }
 }

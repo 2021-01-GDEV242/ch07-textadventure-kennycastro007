@@ -21,6 +21,9 @@ public class Room {
     private String description;
     private HashMap<String, Room> exits; // stores exits of this room.
     private ArrayList<Item> items;
+    public int healthModifier;
+    private NPC npc = null;
+    public boolean isLocked;
 
     /**
      * Create a room described "description". Initially, it has no exits.
@@ -32,6 +35,22 @@ public class Room {
         this.description = description;
         exits = new HashMap<>();
         items = new ArrayList<Item>();
+        healthModifier = 0;
+    }
+
+    /**
+     * Create a room described "description". Initially, it has no exits.
+     * "description" is something like "a kitchen" or "an open court yard".
+     * 
+     * @param description  The room's description.
+     * @param healthChange The amount of hp the player will gain/lose by entering
+     *                     the room
+     */
+    public Room(String description, int healthChange) {
+        this.description = description;
+        exits = new HashMap<>();
+        items = new ArrayList<Item>();
+        healthModifier = healthChange;
     }
 
     /**
@@ -52,6 +71,39 @@ public class Room {
      */
     public void addItem(Item newItem) {
         items.add(newItem);
+    }
+
+    /**
+     * Setter for npc member
+     * 
+     * @param newGuy the new value of npc
+     */
+    public void setNPC(NPC newGuy) {
+        npc = newGuy;
+    }
+
+    /**
+     * Getter for npc member
+     * 
+     * @return the value stored in npc
+     */
+    public NPC getNPC() {
+        return npc;
+    }
+
+    /**
+     * Take the first item in the list of items from the room
+     * 
+     * @return the first item listed in the room
+     */
+    public Item takeItem() {
+        if (items.size() > 0) {
+            Item item = items.get(0);
+            items.remove(0);
+            return item;
+        } else {
+            return null;
+        }
     }
 
     /**
@@ -79,7 +131,8 @@ public class Room {
      * @return A long description of this room
      */
     public String getLongDescription() {
-        return "You are " + description + ".\n" + getExitString() + getItemString();
+        return "You are " + description + ".\n" + getExitString() + getItemString()
+                + (npc == null ? "No NPCs in the room" : "Look! A person! I wonder if he has any tendies on him?");
     }
 
     /**
